@@ -1,3 +1,0 @@
-5 11 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping01.py >>/home/bigdata/scraping/scraping01.log 2>&1
-5 13 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping02.py >>/home/bigdata/scraping/scraping02.log 2>&1
-5 15 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping03.py >>/home/bigdata/scraping/scraping03.log 2>&1
