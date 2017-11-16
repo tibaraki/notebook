@@ -1,0 +1,5 @@
+HOME=/home/bigdata/scraping
+
+* 19 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping01.py > scraping01.log
+* 21 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping02.py > scraping02.log
+* 23 * * * bigdata /usr/bin/python3 /home/bigdata/scraping/scraping03.py > scraping03.log
