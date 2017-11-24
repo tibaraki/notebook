@@ -10,15 +10,17 @@ tagger.parse("")#バグ回避
 dbcon1 = sqlite3.connect("file:text.db", uri=True)
 dbcon1.row_factory = sqlite3.Row
 
-for row in dbcon1.execute("select * from rawtext limit 1"):
+for row in dbcon1.execute("select * from rawtext order by time desc limit 5"):
 	print(row["rawtext"])
 	node = tagger.parseToNode(unicodedata.normalize("NFKC", row["rawtext"]))
 	separated_text = ""
 	while node:
-		if node.feature.split(",")[0] in ["名詞"] :
+		features = node.feature.split(",")
+		if features[0] in ["名詞"] and features[1] not in ["接尾", "数", "接続詞的", "非自立", "代名詞"]:
 			separated_text = separated_text + " " + node.surface
+			print(node.surface + " " + node.feature)
 		node = node.next
-	print(separated_text)
+	#print(separated_text)
 
 
 dbcon1.close()
