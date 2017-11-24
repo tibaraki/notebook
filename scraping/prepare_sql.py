@@ -10,14 +10,15 @@ import sqlite3
 # In[3]:
 
 
-dbname = "text.db"
+dbname = "words.db"
 dbcon = sqlite3.connect(dbname)
 dbcur = dbcon.cursor()
+
+#dbcur.execute("CREATE VIRTUAL TABLE wordstbl USING fts3(id VARCHAR(36) NOT NULL PRIMARY KEY, source VARCHAR(20), time VARCHAR(20), words VARCHAR(1024));")
 #dbcur.execute("DROP TABLE rawtext;")
-dbcur.execute("CREATE TABLE rawtext(id VARCHAR(36) NOT NULL PRIMARY KEY, source VARCHAR(20), time VARCHAR(20), rawtext VARCHAR(1024));")
+#dbcur.execute("CREATE TABLE rawtext(id VARCHAR(36) NOT NULL PRIMARY KEY, source VARCHAR(20), time VARCHAR(20), rawtext VARCHAR(1024));")
 dbcon.commit()
 dbcon.close()
-
 
 # In[5]:
 
