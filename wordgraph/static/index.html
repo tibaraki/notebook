@@ -22,9 +22,22 @@
 </head>
 
 <body>
+	<div>
+		<input type="text" id="wordbox" style="width: 200px;" onchange="update(q_date, this.value);"></input>
+		<select id="calender" onchange="update(this.options[this.selectedIndex].value, q_word);">
+		</select>
+		<span id="msg" style="font-size: 9pt; color: red;"></span>
+	</div>
 	<svg width="600" height="600" style="border: 1px solid gray"></svg>
 	
 	<script>
+	d3.json("/calender", function(err, json){
+		if (err) throw err;
+		d3.select("#calender").selectAll("option").data(json).enter()
+			.append("option")
+			.text(function(d) { return d; });
+	});
+	
 	var svg = d3.select("svg"),
 		width = +svg.attr("width"),
 		height = +svg.attr("height");
@@ -50,18 +63,22 @@
 		.attr("class", "labels")
 		.selectAll("text");
 
+	var working = 0;
+	
 	function ticked() {
-		link
-			.attr("x1", function(d) { return d.source.x; })
-			.attr("y1", function(d) { return d.source.y; })
-			.attr("x2", function(d) { return d.target.x; })
-			.attr("y2", function(d) { return d.target.y; });
-		node
-			.attr("cx", function(d) { return d.x; })
-			.attr("cy", function(d) { return d.y; });
-		label
-			.attr("x", function(d) { return d.x; })
-			.attr("y", function(d) { return d.y; });
+		if (working == 1) {
+			link
+				.attr("x1", function(d) { return d.source.x; })
+				.attr("y1", function(d) { return d.source.y; })
+				.attr("x2", function(d) { return d.target.x; })
+				.attr("y2", function(d) { return d.target.y; });
+			node
+				.attr("cx", function(d) { return d.x; })
+				.attr("cy", function(d) { return d.y; });
+			label
+				.attr("x", function(d) { return d.x; })
+				.attr("y", function(d) { return d.y; });
+		}
 	}
 
 	function dragstarted(d) {
@@ -92,10 +109,15 @@
 	}
 
 	function update(date, word) {
-		httpObj = new XMLHttpRequest();
-		httpObj.open("get", "/words?date="+date+"&word="+word, true);
-		httpObj.onload = function(){
-			var json = JSON.parse(this.responseText);
+		d3.json("/words?date="+date+"&word="+word, function(err, json){
+			if (err) throw err;
+			
+			if ("error" in json) {
+				console.log(json.error);
+				d3.select("#msg").text(json.error);
+				return;
+			}
+			
 			var nodes = json.nodes;
 			var links = json.links;
 
@@ -108,15 +130,16 @@
 
 			link = link.data(links);
 			link = link.enter().append("line")
-				.attr("stroke-width", function(d) { return 1.5; })
-				.merge(link);
+				.attr("stroke-width", function(d) { return 1.5; });
 
 			node = node.data(nodes);
 			node = node.enter().append("circle")
 				.attr("r", 10)
 				.attr("fill", function(d) { return color(d.group); })
-				.on("click", function(d) { update(date, d.id); })
-				.merge(node);
+				.call(d3.drag()
+					.on("start", dragstarted)
+					.on("drag", dragged)
+					.on("end", dragended));
 
 			label = label.data(nodes);
 			label = label.enter().append("text")
@@ -125,20 +148,20 @@
 				.attr("fill", "black")
 				.attr("font-size", "15")
 				.text(function(d) { return d.id; })
-				.call(d3.drag()
-					.on("start", dragstarted)
-					.on("drag", dragged)
-					.on("end", dragended))
-				.merge(label);
 
 			simulation.nodes(nodes);
 			simulation.force("link").links(links);
 			simulation.alpha(1).restart();
-		}
-		httpObj.send(null);
+			
+			working = 1;
+			d3.select("#msg").text("");
+		});
 	}
+	
+	var q_date = "2017-11-28";
+	var q_word = "AI"
 
-	update("2017-11-26", "AI");
+	update(q_date, q_word);
 	</script>
 </body>
 </html>

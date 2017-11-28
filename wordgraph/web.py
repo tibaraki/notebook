@@ -6,6 +6,10 @@ from datetime import datetime
 
 from gensim.models import word2vec
 
+hostname = "0.0.0.0"
+port = 80
+vecdir = "vec/"
+
 def res_json(obj):
     body = json.dumps(obj, ensure_ascii=False)
     res = HTTPResponse(status=200, body=body)
@@ -14,7 +18,7 @@ def res_json(obj):
 
 @route("/calender")
 def calender():
-    return res_json(sorted([x.replace("vec_","") for x in glob.glob('vec_*')], reverse=True))
+    return res_json(sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_*')], reverse=True))
 
 @route("/words", method="GET")
 def words():
@@ -23,10 +27,10 @@ def words():
 
     date = request.query.date #[]で取得すると文字化けする
     word = request.query.word
-    if "vec_" + date not in glob.glob('vec_*'):
+    if vecdir + "vec_" + date not in glob.glob(vecdir + 'vec_*'):
         return res_json({"error": "invalid date"})
     
-    model = word2vec.Word2Vec.load("vec_" + date)
+    model = word2vec.Word2Vec.load(vecdir + "vec_" + date)
     if word not in model.wv.vocab:
         return res_json({"error": "'" + word + "' is not exists in vocabulary"})
     
@@ -51,5 +55,5 @@ def words():
 def root(filename="index.html"):
     return static_file(filename, root="static")
 
-run(host="localhost", port=int(os.environ.get("PORT", 5000)))
+run(host=hostname, port=int(os.environ.get("PORT", port)))
 
