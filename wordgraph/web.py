@@ -32,7 +32,7 @@ def words():
     
     model = word2vec.Word2Vec.load(vecdir + "vec_" + date)
     if word not in model.wv.vocab:
-        return res_json({"error": "'" + word + "' is not exists in vocabulary"})
+        return res_json({"error": "'" + word + "' does not exist in vocabulary"})
     
     nodes = []
     links = []
