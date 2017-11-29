@@ -13,179 +13,223 @@
 		body {
 			font-size: 9pt;
 		}
-		.links line {
+		line {
 			stroke: #999;
-			stroke-opacity: 0.6;
-		}
-		.nodes circle {
-			stroke: #fff;
-			stroke-width: 1.5px;
+			stroke-opacity: 0.4;
 		}
 	</style>
 </head>
 
 <body>
 	<div>
-		検索語:<input type="text" id="wordbox" style="width: 200px;" onchange="update(q_date, this.value, q_index); updaterank(this.value);"></input>
-		上位N件を除外(NW図):<input type="text" id="indexbox" style="width: 60px;" onchange="update(q_date, q_word, this.value);"></input>
-		基準日(NW図):<select id="calender" onchange="update(this.options[this.selectedIndex].value, q_word, q_index);"></select>
+		検索語:
+		<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="AI"></input>
+		上位N件を除外(NW図):
+		<input id="index" type="text" style="width: 60px;" onchange="ns.eh_ga1_update();" value="0"></input>
+		基準日(NW図):
+		<select id="calender" onchange="ns.eh_ga1_update();"></select>
+		
 		<span id="msg" style="color: red;"></span>
 	</div>
-	
+
 	<hr>
 	
-	<div style="vertical-align: top;">
-		<svg width="600" height="600" style="border: 1px solid gray; display: inline-block;"></svg>	
-		<div style="display: inline-block; vertical-align: top;">
-			　出現数上位：
-			<ol id="ranking" style="list-style-type: decimal-leading-zero;">
-			</ol>
-		</div>
-	</div>
+	<svg id="ga1" width="600" height="600" style="border: 1px solid gray; display: inline-block;"></svg>	
+	<svg id="ga2" width="300" height="600" style="border: 1px solid gray; display: inline-block;"></svg>	
 	
 	<script>
 	
-	var q_word = "AI";
-	var q_index = "0";
-	var q_date = "";
-	
-	var svg = d3.select("svg"),
-		width = +svg.attr("width"),
-		height = +svg.attr("height");
-	
-	var color = d3.scaleOrdinal(d3.schemeCategory20);
-	var simulation = d3.forceSimulation()
-	    .force("link", d3.forceLink().id(function(d) { return d.id; }))
-	    .force("charge", d3.forceManyBody().strength(-200))
-	    .force("center", d3.forceCenter(width / 2, height / 2))
-	    .force("collide", d3.forceCollide().radius(20))
-		.on("tick", ticked);
-	var link = svg.append("g")
-		.attr("class", "links")
-		.selectAll("line");
-	var node = svg.append("g")
-		.attr("class", "nodes")
-		.selectAll("circle");
-	var label = svg.append("g")
-		.attr("class", "labels")
-		.selectAll("text");
-	var working = 0;
-	
-	function ticked() {
-		if (working == 1) {
-			link
-				.attr("x1", function(d) { return d.source.x; })
-				.attr("y1", function(d) { return d.source.y; })
-				.attr("x2", function(d) { return d.target.x; })
-				.attr("y2", function(d) { return d.target.y; });
-			node
-				.attr("cx", function(d) { return d.x; })
-				.attr("cy", function(d) { return d.y; });
-			label
-				.attr("x", function(d) { return d.x; })
-				.attr("y", function(d) { return d.y; });
+	//namespace
+	var ns = {};
+
+	//grapharea1
+	(function() {
+		var svg = d3.select("#ga1")
+			.call(d3.zoom()
+				.scaleExtent([-8, 8])
+				.on("zoom", function() {
+					lines.attr("transform", d3.event.transform);
+					circles.attr("transform", d3.event.transform);
+					labels.attr("transform", d3.event.transform);
+				}));
+
+		var width = svg.attr("width");
+		var height = svg.attr("height");
+		
+		var lines = svg.append("g").selectAll("line");
+		var circles = svg.append("g").selectAll("circle");
+		var labels = svg.append("g").selectAll("text");
+
+		var nodes;
+		var links;
+
+		var simulation = d3.forceSimulation()
+			.force("link", d3.forceLink()
+				.id(function(d){return d.id;})
+				.distance(function(d){
+					var min = d3.min(links, function(e){return parseFloat(e.value);});
+					var max = d3.max(links, function(e){return parseFloat(e.value);});
+					var n = (parseFloat(d.value) - min) / (max - min);
+					return parseInt(n * 200);
+				}))
+			.force("charge",	d3.forceManyBody().strength(-50))
+			.force("collide",	d3.forceCollide().radius(20))
+			.force("center",	d3.forceCenter(width/2, height/2))
+			.on("tick", ticked);
+		
+		function ticked() {
+			lines
+				.attr("x1", function(d){return d.source.x;})
+				.attr("y1", function(d){return d.source.y;})
+				.attr("x2", function(d){return d.target.x;})
+				.attr("y2", function(d){return d.target.y;});
+			circles
+				.attr("cx", function(d){return d.x;})
+				.attr("cy", function(d){return d.y;});
+			labels
+				.attr("x", function(d){return d.x;})
+				.attr("y", function(d){return d.y;});
 		}
-	}
-	function dragstarted(d) {
-		if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-		d.fx = d.x;
-		d.fy = d.y;
-	}
-	function dragged(d) {
-		d.fx = d3.event.x;
-		d.fy = d3.event.y;
-	}
-	function dragended(d) {
-		if (!d3.event.active) simulation.alphaTarget(0);
-		d.fx = null;
-		d.fy = null;
-	}
-	svg.call(d3.zoom()
-			.scaleExtent([-8, 8])
-			.on("zoom", zoom));
-	function zoom() {
-		link.attr("transform", d3.event.transform);
-		node.attr("transform", d3.event.transform);
-		label.attr("transform", d3.event.transform);
-	}
-	function update(date, word, index) {
-		d3.json("/words/vec?date="+date+"&word="+word+"&index="+index, function(err, json){
-			if (err) throw err;
-			
-			if ("error" in json) {
-				console.log(json.error);
-				d3.select("#msg").text(json.error);
-				return;
-			}
-			
-			var nodes = json.nodes;
-			var links = json.links;
-			link = link.data([]);
-			link.exit().remove();
-			node = node.data([]);
-			node.exit().remove();
-			label = label.data([]);
-			label.exit().remove();
-			link = link.data(links);
-			link = link.enter().append("line")
-				.attr("stroke-width", function(d) { return 1.5; });
-			node = node.data(nodes);
-			node = node.enter().append("circle")
-				.attr("r", 10)
-				.attr("fill", function(d) { return color(d.group); })
-				.call(d3.drag()
-					.on("start", dragstarted)
-					.on("drag", dragged)
-					.on("end", dragended));
-			label = label.data(nodes);
-			label = label.enter().append("text")
-				.attr("text-anchor", "start")
-				.attr("dominant-baseline", "hanging")
-				.attr("fill", "black")
-				.attr("font-size", "15")
-				.text(function(d) { return d.id; })
-			simulation.nodes(nodes);
-			simulation.force("link").links(links);
-			simulation.alpha(1).restart();
-			
-			working = 1;
+		
+		function update(word,date,index) {
+			d3.json("/words/vec?date="+date+"&word="+word+"&index="+index, function(err, json){
+				if (err) throw err;
+				if ("error" in json) {
+					console.log(json.error);
+					d3.select("#msg").text(json.error);
+					return;
+				}
+
+				nodes = json.nodes;
+				links = json.links;
+				
+				nodes[0].fx = width/2;
+				nodes[0].fy = height/2;
+
+				simulation.nodes(nodes);
+				simulation.force("link").links(links);
+				
+				circles = circles.data([]);
+				circles.exit().remove();
+				circles = circles.data(nodes).enter().append("circle")
+					.attr("r",		10)
+					.attr("fill",	function(d){return d3.schemeCategory20c[d.group*5%20];})
+					.call(d3.drag()
+						.on("start", dragstarted)
+						.on("drag", dragged)
+						.on("end", dragended));
+
+				function dragstarted(d) {
+					if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+					d.fx = d.x;
+					d.fy = d.y;
+				}
+				function dragged(d) {
+					d.fx = d3.event.x;
+					d.fy = d3.event.y;
+				}
+				function dragended(d) {
+					if (!d3.event.active) simulation.alphaTarget(0);
+					d.fx = null;
+					d.fy = null;
+				} 
+
+				labels = labels.data([]);
+				labels.exit().remove();
+				labels = labels.data(nodes).enter().append("text")
+					.text(function(d){return d.id;});
+				
+				lines = lines.data([]);
+				lines.exit().remove();
+				lines = lines.data(links).enter().append("line")
+				
+				simulation.alpha(1).restart();
+			});
+		}
+		
+		ns.ga1_update = update;
+	})();
+
+	//grapharea2
+	(function() {
+		var svg = d3.select("#ga2");
+		var width = svg.attr("width");
+		var height = svg.attr("height");
+		
+		var bars = svg.append("g").selectAll("rect");
+		var labels = svg.append("g").selectAll("text");
+
+		var ranks;
+
+		var x = d3.scaleLinear().range([2, width-2]);
+		var y = d3.scaleBand().range([0, height]).padding(0.1);
+		
+		function update(word) {
+			d3.json("/words/count?word="+word, function(err, json){
+				if (err) throw err;
+				if ("error" in json) {
+					console.log(json.error);
+					d3.select("#msg").text(json.error);
+					return;
+				}
+				ranks = json;
+
+				x.domain([0, d3.max(ranks, function(d){return d[1];})]);
+				y.domain(ranks.map(function(d){return d[0];}));
+				
+				bars = bars.data([]);
+				bars.exit().remove();
+				bars = bars.data(ranks).enter().append("rect")
+					.attr("width",function(d){return x(d[1])-x(0);})
+					.attr("height",function(d){return y.bandwidth();})
+					.attr("x",function(d){return x(0);})
+					.attr("y",function(d){return y(d[0]);})
+					.attr("fill",function(d){return d3.schemeCategory20c[15];});
+					
+				labels = labels.data([]);
+				labels.exit().remove();
+				labels = labels.data(ranks).enter().append("text")
+					.attr("x",function(d){return x(0);})
+					.attr("y",function(d){return y(d[0]);})
+					.attr("dominant-baseline","text-before-edge")
+					.attr("font-size","8pt")
+					.text(function(d){return d[0]+"("+d[1]+")";});
+			});
+		}
+		ns.ga2_update = update;
+	})();
+	
+	//eventhandler
+	(function() {
+		function ga1_update() {
+			var word = d3.select("#word");
+			var index = d3.select("#index");
+			var calender = d3.select("#calender");
+			ns.ga1_update(word.node().value, calender.node().value, index.node().value);
 			d3.select("#msg").text("");
-			q_date = date;
-			q_word = word;
-			q_index = index;
-		});
-	}
-	
-	d3.select("#wordbox").attr("value", q_word);
-	d3.select("#indexbox").attr("value", q_index);
+		}
+		function ga2_update() {
+			var word = d3.select("#word");
+			ns.ga2_update(word.node().value);
+			d3.select("#msg").text("");
+		}
+		ns.eh_ga1_update = ga1_update;
+		ns.eh_ga2_update = ga2_update;
+	})();
 
-	d3.json("/calender", function(err, json){
-		if (err) throw err;
-		d3.select("#calender").selectAll("option").data(json).enter()
-			.append("option")
-			.text(function(d) { return d; });
-		q_date = json[0];
-		update(q_date, q_word, q_index);
-		updaterank(q_word);
-	});
-
-	function updaterank(word) {
-		d3.json("/words/count?word="+word, function(err, json){
+	//main
+	(function() {
+		d3.json("/calender", function(err, json){
 			if (err) throw err;
-			
-			if ("error" in json) {
-				console.log(json.error);
-				d3.select("#msg").text(json.error);
-				return;
-			}
-			
-			d3.select("#ranking").selectAll("li").remove();
-			d3.select("#ranking").selectAll("li").data(json).enter()
-				.append("li")
-				.text(function(d) { return d[0] + "(" + d[1] + ")"; });
+			var calender = d3.select("#calender");
+			calender.selectAll("option").data(json).enter()
+				.append("option")
+				.text(function(d){return d;});
+			ns.eh_ga1_update();
+			ns.eh_ga2_update();
 		});
-	}
-	
+	})();
+
 	</script>
 </body>
 </html>
