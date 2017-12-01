@@ -182,16 +182,10 @@
 
 				var bars_width = function(d) { return x(d[1].count2)-x(0); };
 				var bars_comp_width;
-				var bars_color;
-				var bars_comp_color;
 				if (diff === "1") {
 					bars_comp_width = function(d) { return x(d[1].count2-d[1].count1)-x(0); };
-					bars_color = "#fcc";
-					bars_comp_color = "#c99";
 				} else {
 					bars_comp_width = function(d) { return x(d[1].count1)-x(0); };
-					bars_color = "#c99";
-					bars_comp_color = "#fcc";
 				}
 
 				x.domain([0, d3.max(ranks, function(d){return d[1].count2;})]);
@@ -204,7 +198,7 @@
 					.attr("height",function(d){return y.bandwidth();})
 					.attr("x",function(d){return x(0);})
 					.attr("y",function(d){return y(d[0]);})
-					.attr("fill",bars_color);
+					.attr("fill","#fcc");
 
 				bars_comp = bars_comp.data([]);
 				bars_comp.exit().remove();
@@ -213,7 +207,7 @@
 					.attr("height",function(d){return y.bandwidth();})
 					.attr("x",function(d){return x(0);})
 					.attr("y",function(d){return y(d[0]);})
-					.attr("fill",bars_comp_color);
+					.attr("fill","#c99");
 					
 				labels = labels.data([]);
 				labels.exit().remove();
