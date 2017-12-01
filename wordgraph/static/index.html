@@ -26,9 +26,14 @@
 		<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="AI"></input>
 		上位N件を除外(NW図):
 		<input id="index" type="text" style="width: 60px;" onchange="ns.eh_ga1_update();" value="0"></input>
-		基準日(NW図):
-		<select id="calender" onchange="ns.eh_ga1_update();"></select>
-		
+		基準日:
+		<select id="calender" onchange="ns.eh_sync_calender();ns.eh_ga1_update();ns.eh_ga2_update();"></select>
+		比較対象日:
+		<select id="calender_comp" onchange="ns.eh_ga1_update();ns.eh_ga2_update();"></select>
+		<select id="diff_switch" onchange="ns.eh_ga2_update();">
+			<option value="1">new-word ranking</option>
+			<option value="0">total ranking</option>
+		</select>
 		<span id="msg" style="color: red;"></span>
 	</div>
 
@@ -157,6 +162,7 @@
 		var height = svg.attr("height");
 		
 		var bars = svg.append("g").selectAll("rect");
+		var bars_comp = svg.append("g").selectAll("rect");
 		var labels = svg.append("g").selectAll("text");
 
 		var ranks;
@@ -164,8 +170,8 @@
 		var x = d3.scaleLinear().range([2, width-2]);
 		var y = d3.scaleBand().range([0, height]).padding(0.1);
 		
-		function update(word) {
-			d3.json("/words/count?word="+word, function(err, json){
+		function update(word,date,date_comp,diff) {
+			d3.json("/words/count?word="+word+"&date="+date+"&date_comp="+date_comp+"&diff="+diff, function(err, json){
 				if (err) throw err;
 				if ("error" in json) {
 					console.log(json.error);
@@ -174,17 +180,40 @@
 				}
 				ranks = json;
 
-				x.domain([0, d3.max(ranks, function(d){return d[1];})]);
+				var bars_width = function(d) { return x(d[1].count2)-x(0); };
+				var bars_comp_width;
+				var bars_color;
+				var bars_comp_color;
+				if (diff === "1") {
+					bars_comp_width = function(d) { return x(d[1].count2-d[1].count1)-x(0); };
+					bars_color = "#fcc";
+					bars_comp_color = "#c99";
+				} else {
+					bars_comp_width = function(d) { return x(d[1].count1)-x(0); };
+					bars_color = "#c99";
+					bars_comp_color = "#fcc";
+				}
+
+				x.domain([0, d3.max(ranks, function(d){return d[1].count2;})]);
 				y.domain(ranks.map(function(d){return d[0];}));
 				
 				bars = bars.data([]);
 				bars.exit().remove();
 				bars = bars.data(ranks).enter().append("rect")
-					.attr("width",function(d){return x(d[1])-x(0);})
+					.attr("width",bars_width)
 					.attr("height",function(d){return y.bandwidth();})
 					.attr("x",function(d){return x(0);})
 					.attr("y",function(d){return y(d[0]);})
-					.attr("fill",function(d){return d3.schemeCategory20c[15];});
+					.attr("fill",bars_color);
+
+				bars_comp = bars_comp.data([]);
+				bars_comp.exit().remove();
+				bars_comp = bars_comp.data(ranks).enter().append("rect")
+					.attr("width",bars_comp_width)
+					.attr("height",function(d){return y.bandwidth();})
+					.attr("x",function(d){return x(0);})
+					.attr("y",function(d){return y(d[0]);})
+					.attr("fill",bars_comp_color);
 					
 				labels = labels.data([]);
 				labels.exit().remove();
@@ -193,7 +222,7 @@
 					.attr("y",function(d){return y(d[0]);})
 					.attr("dy","8pt")
 					.attr("font-size","8pt")
-					.text(function(d){return d[0]+"("+d[1]+")";});
+					.text(function(d){return d[0]+"("+(d[1].count2-d[1].count1)+"/"+d[1].count2+")";});
 			});
 		}
 		ns.ga2_update = update;
@@ -210,21 +239,41 @@
 		}
 		function ga2_update() {
 			var word = d3.select("#word");
-			ns.ga2_update(word.node().value);
+			var calender = d3.select("#calender");
+			var calender_comp = d3.select("#calender_comp");
+			var diff_switch = d3.select("#diff_switch");
+			ns.ga2_update(word.node().value, calender.node().value, calender_comp.node().value, diff_switch.node().value);
 			d3.select("#msg").text("");
 		}
+		function sync_calender() {
+			var calender = d3.select("#calender");
+			var calender_comp = d3.select("#calender_comp");
+			
+			var index = calender.node().selectedIndex + 1;
+			if (calender_comp.node().length <= index) {
+				index = calender_comp.node().length - 1;
+			}
+			calender_comp.node().selectedIndex = index;
+		}
+		
 		ns.eh_ga1_update = ga1_update;
 		ns.eh_ga2_update = ga2_update;
+		
+		ns.eh_sync_calender = sync_calender;
 	})();
 
 	//main
 	(function() {
 		d3.json("/calender", function(err, json){
 			if (err) throw err;
-			var calender = d3.select("#calender");
-			calender.selectAll("option").data(json).enter()
+			d3.select("#calender").selectAll("option").data(json).enter()
 				.append("option")
 				.text(function(d){return d;});
+			d3.select("#calender_comp").selectAll("option").data(json).enter()
+				.append("option")
+				.text(function(d){return d;});
+			
+			ns.eh_sync_calender();
 			ns.eh_ga1_update();
 			ns.eh_ga2_update();
 		});
