@@ -191,7 +191,7 @@
 				labels = labels.data(ranks).enter().append("text")
 					.attr("x",function(d){return x(0);})
 					.attr("y",function(d){return y(d[0]);})
-					.attr("dominant-baseline","text-before-edge")
+					.attr("dy","8pt")
 					.attr("font-size","8pt")
 					.text(function(d){return d[0]+"("+d[1]+")";});
 			});
