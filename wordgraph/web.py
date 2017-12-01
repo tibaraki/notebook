@@ -92,6 +92,10 @@ def words_vec():
 
 	return res_json({ "nodes":nodes, "links":links })
 
+@route("/dl/<filename:path>")
+def download(filename):
+	return static_file(filename, root="dl", download=True)
+
 @route("/")
 @route("/<filename:path>")
 def root(filename="index.html"):
