@@ -21,7 +21,7 @@ links = list(set(links))
 texts = []
 count = 0
 
-for link in links[:5]:
+for link in links:
     sleep(2)
     res = requests.get(link)
     res.encoding = res.apparent_encoding
