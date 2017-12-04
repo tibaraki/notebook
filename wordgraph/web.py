@@ -12,20 +12,14 @@ hostname = "0.0.0.0"
 port = 80
 vecdir = "vec/"
 
-def res_json(obj):
-    body = json.dumps(obj, ensure_ascii=False)
-    res = HTTPResponse(status=200, body=body)
-    res.set_header('Content-Type', 'application/json')
-    return res
-
 @route("/calender")
 def calender():
-    return res_json(sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_*')], reverse=True))
+    return {"calender": sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_*')], reverse=True)}
 
 @route("/words/count", method="GET")
 def words_count():
     if any([x not in request.query.keys() for x in ["date","word","date_comp","diff"]]):
-        return res_json({"error": "invalid args"})
+        return {"error": "invalid args"}
 
     date = request.query.date#[]で取得すると文字化けする
     date_comp = request.query.date_comp
@@ -33,9 +27,9 @@ def words_count():
     diff = request.query.diff
 
     if not re.match("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", date):
-        return res_json({"error": "invalid date"})
+        return {"error": "invalid date"}
     if not re.match("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", date_comp):
-        return res_json({"error": "invalid date_comp"})
+        return {"error": "invalid date_comp"}
     
     diff = (diff == "1")
     
@@ -69,27 +63,27 @@ def words_count():
     else:
         wc = sorted(wc.items(), key=lambda x: x[1]["count2"], reverse=True)[:30]
 
-    return res_json(wc)
+    return {"wordcount": wc}
 
 @route("/words/vec", method="GET")
 def words_vec():
     if any([x not in request.query.keys() for x in ["date","word"]]):
-        return res_json({"error": "invalid args"})
+        return {"error": "invalid args"}
 
     date = request.query.date
     word = request.query.word
 
     if vecdir + "vec_" + date not in glob.glob(vecdir + 'vec_*'):
-        return res_json({"error": "invalid date"})
+        return {"error": "invalid date"}
     
     model = word2vec.Word2Vec.load(vecdir + "vec_" + date)
     if word not in model.wv.vocab:
-        return res_json({"error": "'" + word + "' does not exist in vocabulary"})
+        return {"error": "'" + word + "' does not exist in vocabulary"}
 
     index = 0
     if "index" in request.query.keys():
         if not re.match("^[0-9]{1,2}$", request.query.index):
-            return res_json({"error": "invalid index"})
+            return {"error": "invalid index"}
         index = int(request.query.index)
 
     nodes = {}
@@ -109,9 +103,9 @@ def words_vec():
             elif nodes[w2[0]] == 3:
                 links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
     
-    nodes = [ { "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1]) ]
+    nodes = [{ "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1])]
 
-    return res_json({ "nodes":nodes, "links":links })
+    return {"nodes":nodes, "links":links}
 
 @route("/dl/<filename:path>")
 def download(filename):

@@ -178,7 +178,7 @@
 					d3.select("#msg").text(json.error);
 					return;
 				}
-				ranks = json;
+				ranks = json.wordcount;
 
 				var bars_width = function(d) { return x(d[1].count2)-x(0); };
 				var bars_comp_width;
@@ -260,10 +260,10 @@
 	(function() {
 		d3.json("/calender", function(err, json){
 			if (err) throw err;
-			d3.select("#calender").selectAll("option").data(json).enter()
+			d3.select("#calender").selectAll("option").data(json.calender).enter()
 				.append("option")
 				.text(function(d){return d;});
-			d3.select("#calender_comp").selectAll("option").data(json).enter()
+			d3.select("#calender_comp").selectAll("option").data(json.calender).enter()
 				.append("option")
 				.text(function(d){return d;});
 			
@@ -276,4 +276,3 @@
 	</script>
 </body>
 </html>
-
