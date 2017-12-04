@@ -1,62 +1,39 @@
-
 # coding: utf-8
-
-# In[1]:
-
 
 import requests
 import re
-import operator
+import sqlite3
+import hashlib
 from time import sleep
 from bs4 import BeautifulSoup
-from functools import reduce
 from datetime import datetime
 
 domain = "https://www.nikkan.co.jp"
 startpath = "/"
 
-
-# In[2]:
-
-
 basesoup = BeautifulSoup(requests.get(domain + startpath).text, "lxml")
-
-
-# In[3]:
-
 
 links = []
 for a in basesoup.find_all("a", href=re.compile("^/articles/view/[0-9]+")):
     links.append(domain + a.get("href"))
 links = list(set(links))
 
-
-# In[4]:
-
-
 texts = []
 count = 0
 
-for link in links:
+for link in links[:5]:
     sleep(2)
     res = requests.get(link)
     res.encoding = res.apparent_encoding
     soup = BeautifulSoup(res.text, "lxml")
 
-    title = reduce(operator.add ,[x.text.strip() for x in soup.find_all("div", class_="ttl")], "")
-    main = reduce(operator.add ,[x.text.strip() for x in soup.find_all("p", style="text-indent:1em;")], "")
+    title = "".join([x.text.strip() for x in soup.find_all("div", class_="ttl")])
+    main = "".join([x.text.strip() for x in soup.find("div", class_="txt").find_all("p")])
     text = (title + " " + main).replace("\u3000"," ")
     texts.append(text)
     
     count = count + 1
     print (datetime.now().isoformat()+":("+str(count)+"/"+str(len(links))+")")
-
-
-# In[14]:
-
-
-import sqlite3
-import hashlib
 
 dbname = "text.db"
 dbcon = sqlite3.connect(dbname)
