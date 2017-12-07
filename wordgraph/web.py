@@ -8,9 +8,9 @@ from datetime import datetime
 
 from gensim.models import word2vec
 
-hostname = "0.0.0.0"
+hostname = "localhost"
 port = 80
-vecdir = "vec/"
+vecdir = ".\\"
 
 def res_json(obj):
     body = json.dumps(obj, ensure_ascii=False)
