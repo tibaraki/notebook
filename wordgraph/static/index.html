@@ -23,25 +23,26 @@
 <body>
 	<div>
 		検索語:
-		<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="AI"></input>
+		<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="">
 		上位N件を除外(NW図):
-		<input id="index" type="text" style="width: 60px;" onchange="ns.eh_ga1_update();" value="0"></input>
+		<input id="index" type="text" style="width: 60px;" onchange="ns.eh_ga1_update();" value="0">
 		基準日:
-		<select id="calender" onchange="ns.eh_sync_calender();ns.eh_ga1_update();ns.eh_ga2_update();"></select>
+		<select id="calender" onchange="ns.eh_sync_calender();ns.eh_ga1_update();ns.eh_ga2_update();ns.eh_article_search();"></select>
 		比較対象日:
 		<select id="calender_comp" onchange="ns.eh_ga1_update();ns.eh_ga2_update();"></select>
 		<select id="diff_switch" onchange="ns.eh_ga2_update();">
 			<option value="1">new-word ranking</option>
 			<option value="0">total ranking</option>
 		</select>
+		元記事検索:<input id="query" type="text" style="width: 200px;" onchange="ns.eh_article_search();" value="">
 		<span id="msg" style="color: red;"></span>
 	</div>
 
 	<hr>
 	
-	<svg id="ga1" width="600" height="600" style="border: 1px solid gray; display: inline-block;"></svg>	
-	<svg id="ga2" width="300" height="600" style="border: 1px solid gray; display: inline-block;"></svg>	
-	
+	<svg id="ga1" width="600" height="600" style="border: 1px solid gray; display: inline-block;"></svg>
+	<svg id="ga2" width="300" height="600" style="border: 1px solid gray; display: inline-block;"></svg>
+	<div id="article" style="border: 1px solid gray; display: inline-block; width: 300px; height: 600px; overflow: auto;"></div>
 	<script>
 	
 	//namespace
@@ -74,7 +75,7 @@
 				.distance(function(d){
 					var min = d3.min(links, function(e){return parseFloat(e.value);});
 					var max = d3.max(links, function(e){return parseFloat(e.value);});
-					var n = (parseFloat(d.value) - min) / (max - min);
+					var n = (max - parseFloat(d.value)) / (max - min);
 					return parseInt(n * 200);
 				}))
 			.force("charge",	d3.forceManyBody().strength(-50))
@@ -114,9 +115,9 @@
 				simulation.nodes(nodes);
 				simulation.force("link").links(links);
 				
-				circles = circles.data([]);
+				circles = circles.data(nodes, function(d) {return d.id;});
 				circles.exit().remove();
-				circles = circles.data(nodes).enter().append("circle")
+				circles = circles.data(nodes).enter().append("circle").merge(circles)
 					.attr("r",		10)
 					.attr("fill",	function(d){return d3.schemeCategory20c[d.group*5%20];})
 					.call(d3.drag()
@@ -139,14 +140,14 @@
 					d.fy = null;
 				} 
 
-				labels = labels.data([]);
+				labels = labels.data(nodes, function(d) {return d.id;});
 				labels.exit().remove();
-				labels = labels.data(nodes).enter().append("text")
+				labels = labels.data(nodes).enter().append("text").merge(labels)
 					.text(function(d){return d.id;});
 				
-				lines = lines.data([]);
+				lines = lines.data(lines, function(d) {return d.source+"-"+d.target;});
 				lines.exit().remove();
-				lines = lines.data(links).enter().append("line")
+				lines = lines.data(links).enter().append("line").merge(lines);
 				
 				simulation.alpha(1).restart();
 			});
@@ -221,7 +222,38 @@
 		}
 		ns.ga2_update = update;
 	})();
-	
+
+	//article
+	(function() {
+		var container = d3.select("#article");
+        var div = container.selectAll("div");
+		var article;
+		
+		function search(query,date,offset) {
+			d3.json("/article/search?query="+query+"&date="+date+"&offset="+offset, function(err, json){
+				if (err) throw err;
+				if ("error" in json) {
+					console.log(json.error);
+					d3.select("#msg").text(json.error);
+					return;
+				}
+				article = json.article;
+
+                div = div.data([]);
+                div.exit().remove();
+                div = div.data(article).enter().append("div");
+                div.append("div")
+                    .style("background-color", "#999")
+                    .text(function(d) {return d.source + "/" + d.date.slice(0,-16);});
+                div.append("div")
+                    .style("margin-bottom", "10px")
+                    .text(function(d) {return d.text;});
+                
+			});
+		}
+		ns.article_search = search;
+	})();
+
 	//eventhandler
 	(function() {
 		function ga1_update() {
@@ -249,11 +281,18 @@
 			}
 			calender_comp.node().selectedIndex = index;
 		}
+		function article_search() {
+			var query = d3.select("#query");
+			var calender = d3.select("#calender");
+			
+			ns.article_search(query.node().value, calender.node().value, 0);
+		}
 		
 		ns.eh_ga1_update = ga1_update;
 		ns.eh_ga2_update = ga2_update;
 		
 		ns.eh_sync_calender = sync_calender;
+		ns.eh_article_search = article_search;
 	})();
 
 	//main
@@ -268,8 +307,6 @@
 				.text(function(d){return d;});
 			
 			ns.eh_sync_calender();
-			ns.eh_ga1_update();
-			ns.eh_ga2_update();
 		});
 	})();
 
