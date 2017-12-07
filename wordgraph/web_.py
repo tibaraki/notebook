@@ -16,12 +16,49 @@ vecdir = ".\\"
 def calender():
     return {"calender": sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_*')], reverse=True)}
 
+@route("/article/search", method="GET")
+def article_search():
+    if any([x not in request.query.keys() for x in ["date","query"]]):
+        return {"error": "invalid args"}
+
+    date = request.query.date#[]で取得すると文字化けする
+    query = request.query.query
+
+    if not re.match("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", date):
+        return {"error": "invalid date"}
+    if query == '':
+        return {"error": "invalid query"}
+
+    offset = 0
+    if "offset" in request.query.keys():
+        if not re.match("^[0-9]{1,4}$", request.query.offset):
+            return {"error": "invalid offset"}
+        offset = int(request.query.offset)
+
+    time = date+"T23:59:59.999999"
+
+    article = []
+
+    dbword = sqlite3.connect("file:words.db", uri=True)
+    dbword.row_factory = sqlite3.Row
+    dbtext = sqlite3.connect("file:text.db", uri=True)
+    dbtext.row_factory = sqlite3.Row
+
+    for r1 in dbword.execute("select * from wordstbl where words match ? and time < ? order by time desc limit 5 offset ?", (query, time, offset)):
+        r2 = dbtext.execute("select * from rawtext where id = ?", (r1["id"],)).fetchone()
+        article.append({"date": r2["time"], "text": r2["rawtext"]})
+
+    dbtext.close()
+    dbword.close()
+    
+    return {"article": article}
+
 @route("/words/count", method="GET")
 def words_count():
     if any([x not in request.query.keys() for x in ["date","word","date_comp","diff"]]):
         return {"error": "invalid args"}
 
-    date = request.query.date#[]で取得すると文字化けする
+    date = request.query.date
     date_comp = request.query.date_comp
     word = request.query.word
     diff = request.query.diff
