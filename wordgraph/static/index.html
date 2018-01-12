@@ -116,14 +116,16 @@
 				simulation.force("link").links(links);
 				
 				circles = circles.data(nodes, function(d) {return d.id;});
-				circles.exit().remove();
-				circles = circles.data(nodes).enter().append("circle").merge(circles)
-					.attr("r",		10)
-					.attr("fill",	function(d){return d3.schemeCategory20c[d.group*5%20];})
+				circles.exit().transition().duration(1000).attr("r", 1).remove();
+				circles = circles.enter().append("circle")
+					.attr("r",		20)
 					.call(d3.drag()
 						.on("start", dragstarted)
 						.on("drag", dragged)
-						.on("end", dragended));
+						.on("end", dragended))
+					.merge(circles)
+						.attr("r",		10)
+						.attr("fill",	function(d){return d3.schemeCategory20c[d.group*5%20];});
 
 				function dragstarted(d) {
 					if (!d3.event.active) simulation.alphaTarget(0.3).restart();
