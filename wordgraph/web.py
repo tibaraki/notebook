@@ -45,7 +45,7 @@ def article_search():
     dbtext = sqlite3.connect("file:text.db", uri=True)
     dbtext.row_factory = sqlite3.Row
 
-    for r1 in dbword.execute("select * from wordstbl where words match ? and time < ? order by time desc limit 5 offset ?", (query, time, offset)):
+    for r1 in dbword.execute("select * from wordstbl where words match ? and time < ? order by time desc limit 20 offset ?", (query, time, offset)):
         r2 = dbtext.execute("select * from rawtext where id = ?", (r1["id"],)).fetchone()
         article.append({"date": r2["time"], "text": unicodedata.normalize("NFKC", r2["rawtext"]), "source": r2["source"]})
 
