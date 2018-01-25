@@ -15,7 +15,7 @@ vecdir = "vec/"
 
 @route("/calender")
 def calender():
-    return {"calender": sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_*')], reverse=True)}
+    return {"calender": sorted([x.replace(vecdir + "vec_","") for x in glob.glob(vecdir + 'vec_??????????')], reverse=True)}
 
 @route("/article/search", method="GET")
 def article_search():
@@ -105,11 +105,12 @@ def words_count():
 
 @route("/words/vec", method="GET")
 def words_vec():
-    if any([x not in request.query.keys() for x in ["date","word"]]):
+    if any([x not in request.query.keys() for x in ["date","word","date_comp"]]):
         return {"error": "invalid args"}
 
     date = request.query.date
     word = request.query.word
+    date_comp = request.query.date_comp
 
     if vecdir + "vec_" + date not in glob.glob(vecdir + 'vec_*'):
         return {"error": "invalid date"}
@@ -124,6 +125,23 @@ def words_vec():
             return {"error": "invalid index"}
         index = int(request.query.index)
 
+    if vecdir + "vec_" + date_comp not in glob.glob(vecdir + 'vec_*'):
+        return {"error": "invalid date"}
+
+    model_comp = word2vec.Word2Vec.load(vecdir + "vec_" + date_comp)
+    
+    (nodes, links) = generate_nodes_links(word, model, index)
+    (nodes_comp, _) = generate_nodes_links(word, model_comp, index)
+    
+    for n in nodes:
+        if n["id"] in [nc["id"] for nc in nodes_comp]:
+            n["isnew"] = 0
+        else:
+            n["isnew"] = 1
+
+    return {"nodes":nodes, "links":links}
+
+def generate_nodes_links(word, model, index):
     nodes = {}
     links = []
     
@@ -142,8 +160,9 @@ def words_vec():
                 links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
     
     nodes = [{ "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1])]
+    
+    return (nodes, links)
 
-    return {"nodes":nodes, "links":links}
 
 @route("/dl/<filename:path>")
 def download(filename):

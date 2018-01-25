@@ -32,6 +32,7 @@
 			<select id="calender" onchange="ns.eh_sync_calender();ns.eh_ga1_update();ns.eh_ga2_update();ns.eh_article_search();"></select>
 			比較日:
 			<select id="calender_comp" onchange="ns.eh_ga1_update();ns.eh_ga2_update();"></select>
+			<span id="msg" style="color: red;"></span>
 		</div>
 
 		<hr>
@@ -54,7 +55,6 @@
 
 		<div>
 			元記事検索:<input id="query" type="text" style="width: 200px;" onchange="ns.eh_article_search();" value="AI">
-			<span id="msg" style="color: red;"></span>
 		</div>
 
 		<div id="article" style="width: 1100px"></div>
@@ -113,8 +113,8 @@
 					.attr("y", function(d){return d.y;});
 			}
 
-			function update(word,date,index) {
-				d3.json("/words/vec?date="+date+"&word="+word+"&index="+index, function(err, json){
+			function update(word,date,index,date_comp) {
+				d3.json("/words/vec?date="+date+"&word="+word+"&index="+index+"&date_comp="+date_comp, function(err, json){
 					if (err) throw err;
 					if ("error" in json) {
 						console.log(json.error);
@@ -161,7 +161,8 @@
 					labels = labels.data(nodes, function(d) {return d.id;});
 					labels.exit().remove();
 					labels = labels.data(nodes).enter().append("text").merge(labels)
-						.text(function(d){return d.id;});
+						.text(function(d){return d.id;})
+                        .attr("fill", function(d) {return ["black","red"][d.isnew]});
 
 					lines = lines.data(lines, function(d) {return d.source+"-"+d.target;});
 					lines.exit().remove();
@@ -269,7 +270,15 @@
 						.style("background-color", "#ccc")
 						.text(function(d) {return d.source + "/" + d.date.slice(0,-16);});
 					div.append("div")
-						.text(function(d) {return d.text.substr(0,100);});
+						.html(function(d) {
+                            var html = d.text.substr(0,100);
+                            var i = 0;
+                            for (q of query.split(" ")) {
+                                var re = new RegExp("("+q+")", "g");
+                                html = html.replace(re, '<span style="background-color:'+d3.schemeCategory20c[(++i)*5%20]+';color:white;">$1</span>');
+                            }
+                            return html;
+                        });
 
 				});
 			}
@@ -281,8 +290,9 @@
 			function ga1_update() {
 				var word = d3.select("#word");
 				var index = d3.select("#index");
+				var calender_comp = d3.select("#calender_comp");
 				var calender = d3.select("#calender");
-				ns.ga1_update(word.node().value, calender.node().value, index.node().value);
+				ns.ga1_update(word.node().value, calender.node().value, index.node().value, calender_comp.node().value);
 				d3.select("#msg").text("");
 			}
 			function ga2_update() {
