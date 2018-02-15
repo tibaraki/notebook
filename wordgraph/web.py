@@ -6,6 +6,7 @@ import sqlite3
 from bottle import route, run, HTTPResponse, static_file, request
 from datetime import datetime
 import unicodedata
+import numpy as np
 
 from gensim.models import word2vec
 
@@ -109,15 +110,15 @@ def words_vec():
         return {"error": "invalid args"}
 
     date = request.query.date
-    word = request.query.word
+    words = request.query.word.split(" ")
     date_comp = request.query.date_comp
 
     if vecdir + "vec_" + date not in glob.glob(vecdir + 'vec_*'):
         return {"error": "invalid date"}
     
     model = word2vec.Word2Vec.load(vecdir + "vec_" + date)
-    if word not in model.wv.vocab:
-        return {"error": "'" + word + "' does not exist in vocabulary"}
+    if any(word not in model.wv.vocab for word in words):
+        return {"error": "at least one word is not in the vocabulary"}
 
     index = 0
     if "index" in request.query.keys():
@@ -130,8 +131,8 @@ def words_vec():
 
     model_comp = word2vec.Word2Vec.load(vecdir + "vec_" + date_comp)
     
-    (nodes, links) = generate_nodes_links(word, model, index)
-    (nodes_comp, _) = generate_nodes_links(word, model_comp, index)
+    (nodes, links) = generate_nodes_links(words, model, index)
+    (nodes_comp, _) = generate_nodes_links(words, model_comp, index)
     
     for n in nodes:
         if n["id"] in [nc["id"] for nc in nodes_comp]:
@@ -141,24 +142,31 @@ def words_vec():
 
     return {"nodes":nodes, "links":links}
 
-def generate_nodes_links(word, model, index):
+def generate_nodes_links(words, model, index):
     nodes = {}
     links = []
     
-    nodes[word] = 1
-    
-    for w1 in model.most_similar(positive=[word], negative=[], topn=index+12)[index:]:
-        nodes[w1[0]] = 2
-        links.append({ "source":word, "target":w1[0], "value": w1[1] })
+    wv0 = np.average(np.array([model.wv[x] for x in words]), axis = 0)
 
-    for w1 in model.most_similar(positive=[word], negative=[], topn=index+12)[index:]:
-        for w2 in model.most_similar(positive=[w1[0]], negative=[], topn=index+7)[index:]:
-            if w2[0] not in nodes.keys():
-                nodes[w2[0]] = 3
-                links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
-            elif nodes[w2[0]] == 3:
-                links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
-    
+    word = "+".join(words)
+
+    nodes[word] = 1
+
+    for w1 in model.wv.most_similar(positive=[wv0], negative=[], topn=index+13)[index:]:
+        if word != w1[0]:
+            nodes[w1[0]] = 2
+            links.append({ "source":word, "target":w1[0], "value": w1[1] })
+
+    for w1 in model.wv.most_similar(positive=[wv0], negative=[], topn=index+13)[index:]:
+        if word != w1[0]:
+            for w2 in model.wv.most_similar(positive=[model.wv[w1[0]]], negative=[], topn=index+8)[index:]:
+                if w2[0] != w1[0]:
+                    if w2[0] not in nodes.keys():
+                        nodes[w2[0]] = 3
+                        links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
+                    elif nodes[w2[0]] == 3:
+                        links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
+
     nodes = [{ "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1])]
     
     return (nodes, links)
