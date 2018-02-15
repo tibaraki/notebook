@@ -162,7 +162,9 @@
 					labels.exit().remove();
 					labels = labels.data(nodes).enter().append("text").merge(labels)
 						.text(function(d){return d.id;})
-                        .attr("fill", function(d) {return ["black","red"][d.isnew]});
+                        .attr("fill", function(d) {return ["black","red"][d.isnew];})
+                        .on("click", function(d) {d3.select("#query").property("value",d.id);ns.eh_article_search();})
+                        .on("dblclick", function(d) {d3.select("#word").property("value",d.id);ns.eh_ga1_update();ns.eh_ga2_update();});
 
 					lines = lines.data(lines, function(d) {return d.source+"-"+d.target;});
 					lines.exit().remove();
@@ -236,7 +238,8 @@
 						.attr("y",function(d){return y(d[0]);})
 						.attr("dy","8pt")
 						.attr("font-size","8pt")
-						.text(function(d){return d[0]+"("+(d[1].count2-d[1].count1)+"/"+d[1].count2+")";});
+						.text(function(d){return d[0]+"("+(d[1].count2-d[1].count1)+"/"+d[1].count2+")";})
+                        .on("click", function(d) {d3.select("#query").property("value",d[0]);ns.eh_article_search();});
 				});
 			}
 			ns.ga2_update = update;
@@ -272,12 +275,18 @@
 					div.append("div")
 						.html(function(d) {
                             var html = d.text.substr(0,100);
+                            var html_all = d.text;
                             var i = 0;
+                            var j = 0;
                             for (q of query.split(" ")) {
                                 var re = new RegExp("("+q+")", "g");
-                                html = html.replace(re, '<span style="background-color:'+d3.schemeCategory20c[(++i)*5%20]+';color:white;">$1</span>');
+                                i++;
+                                html = html.replace(re, '<span style="background-color:'+d3.schemeCategory20c[(i)*5%20]+';color:white;">$1</span>');
+                                html_all = html_all.replace(re, '<span style="background-color:'+d3.schemeCategory20c[(i)*5%20]+';color:white;">$1</span>');
+                                j++;
+                                html_all = '<a onclick="'+"d3.select('#article"+j+"').style('display:none')"+'">…</a><span style="display:none;" id=article"'+j+'">'+html_all+'</span>';
                             }
-                            return html;
+                            return html+html_all;
                         });
 
 				});
