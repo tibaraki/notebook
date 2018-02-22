@@ -152,20 +152,48 @@ def generate_nodes_links(words, model, index):
 
     nodes[word] = 1
 
-    for w1 in model.wv.most_similar(positive=[wv0], negative=[], topn=index+13)[index:]:
+    rank = 15
+    
+    for w1 in model.wv.most_similar(positive=[wv0], negative=[], topn=index+rank)[index:]:
+        if word == w1[0]:
+            continue
+        else:
+            nodes[w1[0]] = 2
+            links.append({ "source":word, "target":w1[0], "value": w1[1] })            
+            
+        for w2 in model.wv.most_similar(positive=[model.wv[w1[0]]], negative=[], topn=index+3)[index:]:
+            if w2[0] not in nodes.keys():
+                nodes[w2[0]] = 3
+                links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
+            elif nodes[w2[0]] == 3:
+                links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
+
+    nodes = [{ "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1])]
+    
+    return (nodes, links)
+
+
+def generate_nodes_mesh(words, model, index):
+    nodes = {}
+    links = []
+    
+    wv0 = np.average(np.array([model.wv[x] for x in words]), axis = 0)
+
+    word = "+".join(words)
+
+    nodes[word] = 1
+
+    rank = 10
+    
+    ret_words = model.wv.most_similar(positive=[wv0], negative=[], topn=index+rank)[index:]
+    
+    for w1 in ret_words:
         if word != w1[0]:
             nodes[w1[0]] = 2
-            links.append({ "source":word, "target":w1[0], "value": w1[1] })
 
-    for w1 in model.wv.most_similar(positive=[wv0], negative=[], topn=index+13)[index:]:
-        if word != w1[0]:
-            for w2 in model.wv.most_similar(positive=[model.wv[w1[0]]], negative=[], topn=index+8)[index:]:
-                if w2[0] != w1[0]:
-                    if w2[0] not in nodes.keys():
-                        nodes[w2[0]] = 3
-                        links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
-                    elif nodes[w2[0]] == 3:
-                        links.append({ "source":w1[0], "target":w2[0], "value": w2[1] })
+    for i in range(len(ret_words)):
+        for j in range(i + 1, len(ret_words)):
+            links.append({ "source":ret_words[i][0], "target":ret_words[j][0], "value": model.wv.similarity(ret_words[i][0], ret_words[j][0]) })            
 
     nodes = [{ "id": k, "group": v } for k, v in sorted(nodes.items(), key=lambda x:x[1])]
     
