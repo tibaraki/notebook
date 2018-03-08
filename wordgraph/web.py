@@ -48,6 +48,9 @@ def article_search():
 
     for r1 in dbword.execute("select * from wordstbl where words match ? and time < ? order by time desc limit 20 offset ?", (query, time, offset)):
         r2 = dbtext.execute("select * from rawtext where id = ?", (r1["id"],)).fetchone()
+        if !r2:
+            r2 = dbtext.execute("select * from rawtext2 where id = ?", (r1["id"],)).fetchone()
+
         article.append({"date": r2["time"], "text": unicodedata.normalize("NFKC", r2["rawtext"]), "source": r2["source"]})
 
     dbtext.close()
