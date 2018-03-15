@@ -9,6 +9,7 @@
 		<meta name="author" content="tibaraki">
 
 		<script src="https://d3js.org/d3.v4.min.js"></script>
+        <script src="store.legacy.min.js"></script>
 		<style>
 			body {
 				font-size: 9pt;
@@ -17,13 +18,25 @@
 				stroke: #999;
 				stroke-opacity: 0.4;
 			}
+            #history span {
+                text-decoration: underline;
+                color: blue;
+                margin-right: 1em;
+            }
+            #history span:hover {
+                cursor: pointer;
+            }
+            #ga1 g text:hover {
+                cursor: pointer;
+                text-decoration: underline;
+            }
 		</style>
 	</head>
 
 	<body>
 		<div>
 			検索語:
-			<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="AI">
+			<input id="word" type="text" style="width: 200px;" onchange="ns.eh_ga1_update();ns.eh_ga2_update();" value="">
 			<span style="display: none;">
 			上位N件を除外(NW図):
 			<input id="index" type="text" style="width: 60px;" onchange="ns.eh_ga1_update();" value="0">
@@ -37,8 +50,13 @@
 
 		<hr>
 
+        <div id="history">検索履歴：
+        </div>
+
+		<hr>
+
 		<div style="display: inline-block;">
-			<div>キーワード関連性グラフ</div>
+			<div>キーワード関連性グラフ(クリック：記事検索 ダブルクリック：ジャンプ)</div>
 			<svg id="ga1" width="700" height="600" style="border: 1px solid gray;"></svg>
 		</div>
 		<div style="display: inline-block;">
@@ -54,7 +72,7 @@
 		<hr>
 
 		<div>
-			元記事検索:<input id="query" type="text" style="width: 200px;" onchange="ns.eh_article_search();" value="AI">
+			元記事検索:<input id="query" type="text" style="width: 200px;" onchange="ns.eh_article_search();" value="">
 		</div>
 
 		<div id="article" style="width: 1100px"></div>
@@ -62,11 +80,35 @@
 		<script>
 
 		//namespace
-		var ns = {};
+		let ns = {};
 
+        //history
+        function add_history(word) {
+            let histories = store.get("history");
+            if (!histories) histories = [];
+            histories.unshift(word);
+            histories = histories.slice(0,10)
+            store.set("history", histories);
+            sync_history();
+        }
+        function sync_history() {
+            let histories = store.get("history");
+            d3.select("#history").selectAll("span").remove();
+            d3.select("#history").selectAll("span").data(store.get("history")).enter()
+                .append("span")
+                .text(function(d){return d;})
+                .on("click", function(d) {
+                    d3.select("#query").property("value",d.replace('+', ' '));ns.eh_article_search();
+                    d3.select("#word").property("value",d);ns.eh_ga1_update();ns.eh_ga2_update();
+                });
+        }
+        function get_histories() {
+            return store.get("history");
+        }
+        
 		//grapharea1
 		(function() {
-			var svg = d3.select("#ga1")
+			let svg = d3.select("#ga1")
 				.call(d3.zoom()
 					.scaleExtent([-8, 8])
 					.on("zoom", function() {
@@ -75,23 +117,23 @@
 						labels.attr("transform", d3.event.transform);
 					}));
 
-			var width = svg.attr("width");
-			var height = svg.attr("height");
+			let width = svg.attr("width");
+			let height = svg.attr("height");
 
-			var lines = svg.append("g").selectAll("line");
-			var circles = svg.append("g").selectAll("circle");
-			var labels = svg.append("g").selectAll("text");
+			let lines = svg.append("g").selectAll("line");
+			let circles = svg.append("g").selectAll("circle");
+			let labels = svg.append("g").selectAll("text");
 
-			var nodes;
-			var links;
+			let nodes;
+			let links;
 
-			var simulation = d3.forceSimulation()
+			let simulation = d3.forceSimulation()
 				.force("link", d3.forceLink()
 					.id(function(d){return d.id;})
 					.distance(function(d){
-						var min = d3.min(links, function(e){return parseFloat(e.value);});
-						var max = d3.max(links, function(e){return parseFloat(e.value);});
-						var n = (max - parseFloat(d.value)) / (max - min);
+						let min = d3.min(links, function(e){return parseFloat(e.value);});
+						let max = d3.max(links, function(e){return parseFloat(e.value);});
+						let n = (max - parseFloat(d.value)) / (max - min);
 						return parseInt(n * 200);
 					}))
 				.force("charge",	d3.forceManyBody().strength(-50))
@@ -163,14 +205,19 @@
 					labels = labels.data(nodes).enter().append("text").merge(labels)
 						.text(function(d){return d.id;})
                         .attr("fill", function(d) {return ["black","red"][d.isnew];})
-                        .on("click", function(d) {d3.select("#query").property("value",d.id.replace('+', ' '));ns.eh_article_search();})
-                        .on("dblclick", function(d) {d3.select("#word").property("value",d.id);ns.eh_ga1_update();ns.eh_ga2_update();});
-
+                        .on("click", function(d) {
+                            d3.select("#query").property("value",d.id.replace('+', ' '));ns.eh_article_search();
+                            d3.select("#word").property("value",d.id);ns.eh_ga1_update();ns.eh_ga2_update();
+                        });
+ 
 					lines = lines.data(lines, function(d) {return d.source+"-"+d.target;});
 					lines.exit().remove();
 					lines = lines.data(links).enter().append("line").merge(lines);
 
 					simulation.alpha(1).restart();
+                    add_history(word);
+                    d3.select("#query").property("value", get_histories()[0]);
+                    ns.eh_article_search();
 				});
 			}
 
@@ -179,18 +226,18 @@
 
 		//grapharea2
 		(function() {
-			var svg = d3.select("#ga2");
-			var width = svg.attr("width");
-			var height = svg.attr("height");
+			let svg = d3.select("#ga2");
+			let width = svg.attr("width");
+			let height = svg.attr("height");
 
-			var bars = svg.append("g").selectAll("rect");
-			var bars_comp = svg.append("g").selectAll("rect");
-			var labels = svg.append("g").selectAll("text");
+			let bars = svg.append("g").selectAll("rect");
+			let bars_comp = svg.append("g").selectAll("rect");
+			let labels = svg.append("g").selectAll("text");
 
-			var ranks;
+			let ranks;
 
-			var x = d3.scaleLinear().range([2, width-2]);
-			var y = d3.scaleBand().range([0, height]).padding(0.1);
+			let x = d3.scaleLinear().range([2, width-2]);
+			let y = d3.scaleBand().range([0, height]).padding(0.1);
 
 			function update(word,date,date_comp,diff) {
 				d3.json("/words/count?word="+word+"&date="+date+"&date_comp="+date_comp+"&diff="+diff, function(err, json){
@@ -202,8 +249,8 @@
 					}
 					ranks = json.wordcount;
 
-					var bars_width = function(d) { return x(d[1].count2)-x(0); };
-					var bars_comp_width;
+					let bars_width = function(d) { return x(d[1].count2)-x(0); };
+					let bars_comp_width;
 					if (diff === "1") {
 						bars_comp_width = function(d) { return x(d[1].count2-d[1].count1)-x(0); };
 					} else {
@@ -238,8 +285,7 @@
 						.attr("y",function(d){return y(d[0]);})
 						.attr("dy","8pt")
 						.attr("font-size","8pt")
-						.text(function(d){return d[0]+"("+(d[1].count2-d[1].count1)+"/"+d[1].count2+")";})
-                        .on("click", function(d) {d3.select("#query").property("value",d[0]);ns.eh_article_search();});
+						.text(function(d){return d[0]+"("+(d[1].count2-d[1].count1)+"/"+d[1].count2+")";});
 				});
 			}
 			ns.ga2_update = update;
@@ -247,9 +293,9 @@
 
 		//article
 		(function() {
-			var container = d3.select("#article");
-			var div = container.selectAll("div");
-			var article;
+			let container = d3.select("#article");
+			let div = container.selectAll("div");
+			let article;
 
 			function search(query,date,offset) {
 				d3.json("/article/search?query="+query+"&date="+date+"&offset="+offset, function(err, json){
@@ -274,11 +320,11 @@
 						.text(function(d) {return d.source + "/" + d.date.slice(0,-16);});
 					div.append("div")
 						.html(function(d) {
-                            var html = d.text.substr(0,100);
-                            var i = 0;
-                            var j = 0;
+                            let html = d.text.substr(0,100);
+                            let i = 0;
+                            let j = 0;
                             for (q of query.split(" ")) {
-                                var re = new RegExp("("+q+")", "g");
+                                let re = new RegExp("("+q+")", "g");
                                 i++;
                                 html = html.replace(re, '<span style="background-color:'+d3.schemeCategory20c[(i)*5%20]+';color:white;">$1</span>');
                             }
@@ -293,34 +339,34 @@
 		//eventhandler
 		(function() {
 			function ga1_update() {
-				var word = d3.select("#word");
-				var index = d3.select("#index");
-				var calender_comp = d3.select("#calender_comp");
-				var calender = d3.select("#calender");
+				let word = d3.select("#word");
+				let index = d3.select("#index");
+				let calender_comp = d3.select("#calender_comp");
+				let calender = d3.select("#calender");
 				ns.ga1_update(word.node().value, calender.node().value, index.node().value, calender_comp.node().value);
 				d3.select("#msg").text("");
 			}
 			function ga2_update() {
-				var word = d3.select("#word");
-				var calender = d3.select("#calender");
-				var calender_comp = d3.select("#calender_comp");
-				var diff_switch = d3.select("#diff_switch");
+				let word = d3.select("#word");
+				let calender = d3.select("#calender");
+				let calender_comp = d3.select("#calender_comp");
+				let diff_switch = d3.select("#diff_switch");
 				ns.ga2_update(word.node().value, calender.node().value, calender_comp.node().value, diff_switch.node().value);
 				d3.select("#msg").text("");
 			}
 			function sync_calender() {
-				var calender = d3.select("#calender");
-				var calender_comp = d3.select("#calender_comp");
+				let calender = d3.select("#calender");
+				let calender_comp = d3.select("#calender_comp");
 
-				var index = calender.node().selectedIndex + 1;
+				let index = calender.node().selectedIndex + 1;
 				if (calender_comp.node().length <= index) {
 					index = calender_comp.node().length - 1;
 				}
 				calender_comp.node().selectedIndex = index;
 			}
 			function article_search() {
-				var query = d3.select("#query");
-				var calender = d3.select("#calender");
+				let query = d3.select("#query");
+				let calender = d3.select("#calender");
 
 				ns.article_search(query.node().value, calender.node().value, 0);
 			}
@@ -343,10 +389,17 @@
 					.append("option")
 					.text(function(d){return d;});
 
+                let hists = get_histories()
+                if (hists) {
+                    d3.select("#word").property("value", hists[0]);
+                    d3.select("#query").property("value", hists[0]);
+                } else {
+                    d3.select("#word").property("value", "AI");
+                    d3.select("#query").property("value", "AI");
+                }
 				ns.eh_sync_calender();
 				ns.eh_ga1_update();
 				ns.eh_ga2_update();
-				ns.eh_article_search();
 			});
 		})();
 
